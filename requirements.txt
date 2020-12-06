@@ -1,0 +1,7 @@
+tensorflow-gpu==1.15 # or tensorflow==1.15
+matplotlib
+scipy
+hickle==3.4
+torch
+tensorflow_probability
+torchdiffeq
