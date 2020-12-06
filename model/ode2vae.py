@@ -1,23 +1,22 @@
 import warnings
+
 warnings.filterwarnings("ignore")
 
 # import os
 # os.environ["CUDA_VISIBLE_DEVICES"]="-1"
 
-import numpy as np
-import tensorflow as tf
-import scipy.stats as ss
 import os
 
+import numpy as np
+import tensorflow as tf
 import tensorflow_probability as tfp
+
 tfd = tfp.distributions
 
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import functional_ops
-from tensorflow.python.ops import array_ops
 from tensorflow.python.framework import ops
 
 from .tf_utils import *
+
 
 class ODE2VAE(object):
 	def __init__(self, sess, f_opt, q, D, X, t, task='mocap_many', eta=0.001, L=1, \
