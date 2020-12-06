@@ -7,13 +7,13 @@ http://www.cs.utoronto.ca/~ilya/code/2008/RTRBM.tar
 # python3 gen_bouncing_ball_video.py num_frames num_seq
 
 
-import sys
+import logging
+from pathlib import Path
 from typing import Optional
 
+import fire
 import hickle as hkl  # type: ignore
 import matplotlib  # type: ignore
-
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # type: ignore
 import numpy as np
 from numpy import (
@@ -25,11 +25,10 @@ from numpy import (
     linalg,
     meshgrid,
     ndarray,
-    rand,
-    randn,
     sqrt,
     zeros,
 )
+from numpy.random import rand, randn
 
 
 def shape(A):
@@ -55,11 +54,11 @@ def new_speeds(m1, m2, v1, v2):
     return new_v1, new_v2
 
 
-def norm(x):
+def norm(x: np.ndarray) -> np.ndarray:
     return sqrt((x ** 2).sum())
 
 
-def sigmoid(x):
+def sigmoid(x: np.ndarray) -> np.ndarray:
     return 1.0 / (1.0 + exp(-x))
 
 
@@ -70,7 +69,9 @@ def bounce_n(
     mass: Optional[np.ndarray] = None,
     init_position: Optional[np.ndarray] = None,
     size: float = 10,
-):
+    noise: float = 0.0,
+    step_size: float = 0.5,
+) -> np.ndarray:
     if radius is None:
         radius = array([1.2] * n_balls)
     if mass is None:
@@ -79,43 +80,42 @@ def bounce_n(
     v = randn(n_balls, 2)
     v = v / norm(v) * 0.5
     good_config = False
-    x = init_position if init_position is not None else 2 + np.rand(n_balls, 2) * 8
+    position = init_position if init_position is not None else 2 + rand(n_balls, 2) * 8
     while not good_config:
-        x = 2 + rand(n_balls, 2) * 8
+        position = 2 + rand(n_balls, 2) * 8
         good_config = True
         for i in range(n_balls):
             for z in range(2):
-                if x[i][z] - radius[i] < 0:
+                if position[i][z] - radius[i] < 0:
                     good_config = False
-                if x[i][z] + radius[i] > size:
+                if position[i][z] + radius[i] > size:
                     good_config = False
 
         for i in range(n_balls):
             for j in range(i):
-                if norm(x[i] - x[j]) < radius[i] + radius[j]:
+                if norm(position[i] - position[j]) < radius[i] + radius[j]:
                     good_config = False
 
-    eps = 0.5
-    for t in range(time_horizon):
-        for i in range(n_balls):
-            X[t, i] = x[i]
+    for time_horizon in range(time_horizon):
+        X[time_horizon] = position
 
-        for mu in range(int(1 / eps)):
+        for _ in range(int(1 / step_size)):
 
-            for i in range(n_balls):
-                x[i] += eps * v[i]
+            position += step_size * v + np.random.normal(
+                loc=0.0, scale=noise, size=position.shape
+            )
 
             for i in range(n_balls):
                 for z in range(2):
-                    if x[i][z] - radius[i] < 0:
+                    if position[i][z] - radius[i] < 0:
                         v[i][z] = abs(v[i][z])  # want positive
-                    if x[i][z] + radius[i] > size:
+                    if position[i][z] + radius[i] > size:
                         v[i][z] = -abs(v[i][z])  # want negative
 
             for i in range(n_balls):
                 for j in range(i):
-                    if norm(x[i] - x[j]) < radius[i] + radius[j]:
-                        w = x[i] - x[j]
+                    if norm(position[i] - position[j]) < radius[i] + radius[j]:
+                        w = position[i] - position[j]
                         w = w / norm(w)
 
                         v_i = dot(w.transpose(), v[i])
@@ -143,23 +143,31 @@ def matricize(X, resolution, radius, size=10):
         ar(0, 1, 1.0 / resolution) * size, ar(0, 1, 1.0 / resolution) * size
     )
 
-    for t in range(time_horizon):
+    for time_horizon in range(time_horizon):
         for i in range(n_balls):
-            A[t] += exp(
+            A[time_horizon] += exp(
                 -(
-                    (((I - X[t, i, 0]) ** 2 + (J - X[t, i, 1]) ** 2) / (radius[i] ** 2))
+                    (
+                        (
+                            (I - X[time_horizon, i, 0]) ** 2
+                            + (J - X[time_horizon, i, 1]) ** 2
+                        )
+                        / (radius[i] ** 2)
+                    )
                     ** 4
                 )
             )
 
-        A[t][A[t] > 1] = 1
+        A[time_horizon][A[time_horizon] > 1] = 1
     return A
 
 
-def bounce_vec(resolution, n_balls=2, time_horizon=128, radius=None, mass=None):
+def bounce_vec(
+    resolution, n_balls=2, time_horizon=128, radius=None, mass=None, noise: float = 0.0
+):
     if radius is None:
         radius = array([1.2] * n_balls)
-    x = bounce_n(time_horizon, n_balls, radius, mass)
+    x = bounce_n(time_horizon, n_balls, radius, mass, noise=noise)
     V = matricize(x, resolution, radius)
     return V.reshape(time_horizon, resolution ** 2), x
 
@@ -169,60 +177,70 @@ logdir = "./sample"
 
 
 def show_sample(V):
-    T = len(V)
+    time_horizon = len(V)
     res = int(sqrt(shape(V)[1]))
-    for t in range(T):
-        plt.imshow(V[t].reshape(res, res), cmap=matplotlib.cm.Greys_r)
+    for time_horizon in range(time_horizon):
+        plt.imshow(V[time_horizon].reshape(res, res), cmap=matplotlib.cm.Greys_r)
         # Save it
-        fname = logdir + "/" + str(t) + ".png"
+        fname = logdir + "/" + str(time_horizon) + ".png"
         plt.savefig(fname)
 
 
-if __name__ == "__main__":
-    if len(sys.argv) == 1:
-        T = 50
-        N = 400
-    elif len(sys.argv) == 3:
-        T = int(sys.argv[1])
-        N = int(sys.argv[2])
-    else:
-        raise ValueError("number of input parameters is wrong! exiting...")
-    print("T={:d}, N={:d}".format(T, N))
-    res = 32
+def main(
+    time_horizon: int = 20,
+    n_videos: int = 10000,
+    n_balls: int = 3,
+    resolution: int = 32,
+    noise: float = 0.0,
+    outdir: Path = Path("balls"),
+):
+    matplotlib.use("Agg")
 
-    dat = zeros((N, T, res * res), dtype=float32)
-    x = zeros((N, T, 3, 2), dtype=float32)  # ball locations
-    print(dat.shape)
-    for i in range(N):
-        print(i)
-        dat[i, :, :], x[i, :, :, :] = bounce_vec(
-            resolution=res, n_balls=3, time_horizon=T
+    logging.info(f"time_horizon={time_horizon:d}, n_videos={n_videos:d}")
+
+    frames = zeros((n_videos, time_horizon, resolution * resolution), dtype=float32)
+    positions = zeros((n_videos, time_horizon, 3, 2), dtype=float32)  # ball locations
+    logging.info(f"Frames shape={frames.shape}")
+    for i in range(n_videos):
+        logging.info(f"Making training video {i} of {n_videos}")
+        frames[i], positions[i] = bounce_vec(
+            resolution=resolution,
+            n_balls=n_balls,
+            time_horizon=time_horizon,
+            noise=noise,
         )
-    hkl.dump(dat, "training.hkl", mode="w", compression="gzip")
-    hkl.dump(x, "training_locs.hkl", mode="w", compression="gzip")
+    hkl.dump(frames, outdir / "training.hkl", mode="w", compression="gzip")
+    hkl.dump(positions, outdir / "training_locs.hkl", mode="w", compression="gzip")
 
-    Nv = int(N / 20)
-    dat = zeros((Nv, T, res * res), dtype=float32)
-    x = zeros((Nv, T, 3, 2), dtype=float32)  # ball locations
+    Nv = int(n_videos / 20)
+    frames = zeros((Nv, time_horizon, resolution * resolution), dtype=float32)
+    positions = zeros((Nv, time_horizon, n_balls, 2), dtype=float32)  # ball locations
     for i in range(Nv):
-        print(i)
-        dat[i, :, :], x[i, :, :, :] = bounce_vec(
-            resolution=res, n_balls=3, time_horizon=T
+        logging.info(f"Making validation video {i} of {Nv}")
+        frames[i], positions[i] = bounce_vec(
+            resolution=resolution,
+            n_balls=n_balls,
+            time_horizon=time_horizon,
+            noise=noise,
         )
-    hkl.dump(dat, "val.hkl", mode="w", compression="gzip")
-    hkl.dump(x, "val_locs.hkl", mode="w", compression="gzip")
+    hkl.dump(frames, outdir / "val.hkl", mode="w", compression="gzip")
+    hkl.dump(positions, outdir / "val_locs.hkl", mode="w", compression="gzip")
 
-    Nt = int(N / 20)
-    dat = zeros((Nt, T, res * res), dtype=float32)
-    x = zeros((Nt, T, 3, 2), dtype=float32)  # ball locations
+    Nt = int(n_videos / 20)
+    frames = zeros((Nt, time_horizon, resolution * resolution), dtype=float32)
+    positions = zeros((Nt, time_horizon, n_balls, 2), dtype=float32)  # ball locations
     for i in range(Nt):
-        print(i)
-        dat[i, :, :], x[i, :, :, :] = bounce_vec(
-            resolution=res, n_balls=3, time_horizon=T
+        logging.info(f"Making testing video {i} of {Nt}")
+        frames[i], positions[i] = bounce_vec(
+            resolution=resolution, n_balls=n_balls, time_horizon=time_horizon
         )
-    hkl.dump(dat, "test.hkl", mode="w", compression="gzip")
-    hkl.dump(x, "test_locs.hkl", mode="w", compression="gzip")
+    hkl.dump(frames, outdir / "test.hkl", mode="w", compression="gzip")
+    hkl.dump(positions, outdir / "test_locs.hkl", mode="w", compression="gzip")
 
     # show one video
     # show_sample(dat[1])
     # ffmpeg -start_number 0 -i %d.png -c:v libx264 -pix_fmt yuv420p -r 30 sample.mp4
+
+
+if __name__ == "__main__":
+    fire.Fire(main)
