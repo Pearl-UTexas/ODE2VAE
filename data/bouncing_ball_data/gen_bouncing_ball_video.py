@@ -11,23 +11,12 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-import fire
+import fire  # type: ignore
 import hickle as hkl  # type: ignore
 import matplotlib  # type: ignore
 import matplotlib.pyplot as plt  # type: ignore
 import numpy as np
-from numpy import (
-    arange,
-    array,
-    dot,
-    exp,
-    float32,
-    linalg,
-    meshgrid,
-    ndarray,
-    sqrt,
-    zeros,
-)
+from numpy import arange, array, dot, exp, float32, meshgrid, ndarray, sqrt, zeros
 from numpy.random import rand, randn
 
 
@@ -43,9 +32,6 @@ def size(A):
         return np.size(A)
     else:
         return A.size()
-
-
-det = linalg.det
 
 
 def new_speeds(m1, m2, v1, v2):
@@ -173,10 +159,9 @@ def bounce_vec(
 
 
 # make sure you have this folder
-logdir = "./sample"
 
 
-def show_sample(V):
+def show_sample(V, logdir="./sample"):
     time_horizon = len(V)
     res = int(sqrt(shape(V)[1]))
     for time_horizon in range(time_horizon):
@@ -187,14 +172,18 @@ def show_sample(V):
 
 
 def main(
-    time_horizon: int = 20,
+    time_horizon: int = 50,
     n_videos: int = 10000,
     n_balls: int = 3,
     resolution: int = 32,
     noise: float = 0.0,
     outdir: Path = Path("balls"),
 ):
+    logging.basicConfig(level=logging.DEBUG)
+    logging.debug("hickle version={}")
     matplotlib.use("Agg")
+
+    outdir = Path(outdir)
 
     logging.info(f"time_horizon={time_horizon:d}, n_videos={n_videos:d}")
 
@@ -209,8 +198,8 @@ def main(
             time_horizon=time_horizon,
             noise=noise,
         )
-    hkl.dump(frames, outdir / "training.hkl", mode="w", compression="gzip")
-    hkl.dump(positions, outdir / "training_locs.hkl", mode="w", compression="gzip")
+    np.savez_compressed(outdir / "training.npz", frames)
+    np.savez_compressed(outdir / "training_locs.npz", positions)
 
     Nv = int(n_videos / 20)
     frames = zeros((Nv, time_horizon, resolution * resolution), dtype=float32)
@@ -223,8 +212,8 @@ def main(
             time_horizon=time_horizon,
             noise=noise,
         )
-    hkl.dump(frames, outdir / "val.hkl", mode="w", compression="gzip")
-    hkl.dump(positions, outdir / "val_locs.hkl", mode="w", compression="gzip")
+    np.savez_compressed(outdir / "val.npz", frames)
+    np.savez_compressed(outdir / "val_locs.npz", positions)
 
     Nt = int(n_videos / 20)
     frames = zeros((Nt, time_horizon, resolution * resolution), dtype=float32)
@@ -234,8 +223,8 @@ def main(
         frames[i], positions[i] = bounce_vec(
             resolution=resolution, n_balls=n_balls, time_horizon=time_horizon
         )
-    hkl.dump(frames, outdir / "test.hkl", mode="w", compression="gzip")
-    hkl.dump(positions, outdir / "test_locs.hkl", mode="w", compression="gzip")
+    np.savez_compressed(outdir / "test.npz", frames)
+    np.savez_compressed(outdir / "test_locs.npz", positions)
 
     # show one video
     # show_sample(dat[1])

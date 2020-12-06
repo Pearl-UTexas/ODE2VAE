@@ -136,3 +136,5 @@ dmypy.json
 *.zip
 *.hkl
 *.npy
+*.npz
+*.mp4
