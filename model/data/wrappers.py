@@ -31,9 +31,9 @@ def load_data(
             max_t=max_t,
             dt=dt,
             plot=plot,
-		)
-	else:
-		raise ValueError(f"Task {task} not defined.")
+        )
+    else:
+        raise ValueError(f"Task {task} not defined.")
     [N, T, D] = dataset.train.x.shape
     return dataset, N, T, D
 

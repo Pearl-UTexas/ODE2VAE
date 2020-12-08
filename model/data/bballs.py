@@ -29,7 +29,6 @@ def load_bball_data(data_dir, max_n: int, max_t: int, dt=0.1, plot=True):
     data_dir = Path(data_dir)
 
     Xtr = trim(load(data_dir, "training"), max_n, max_t)
-
     Ytr = dt * np.arange(0, Xtr.shape[1], dtype=np.float32)
     Ytr = np.tile(Ytr, [Xtr.shape[0], 1])
 

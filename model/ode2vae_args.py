@@ -131,7 +131,7 @@ class ODE2VAE_Args:
         self.parser.add_argument(
             "--n-trajectories",
             type=int,
-            default=1000,
+            default=10000,
             help="Number of trajectories to use.",
         )
 

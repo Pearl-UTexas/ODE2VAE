@@ -71,13 +71,15 @@ def main():
         )
     )
     dataset, N, T, D = load_data(
-        args.data_root,
-        args.task,
+        data_dir=args.data_root,
+        task=args.task,
         subject_id=args.subject_id,
-        plot=False,
+        plot=True,
         max_n=args.n_trajectories,
         max_t=args.max_horizon,
     )
+
+    logging.info(f"N={N}, T={T}, D={D}")
 
     # artificial time points
     dt = 0.1
@@ -192,6 +194,8 @@ def main():
                 ]
                 values_batch = sess.run(ops_, feed_dict={vae.train: True, vae.Tss: Tss})
                 values = [values[i] + values_batch[i + 1] for i in range(5)]
+                if any([math.isnan(value) for value in values]):
+                    raise ValueError("Nan Values")
                 num_iter += 1
             except tf.errors.OutOfRangeError:
                 break
