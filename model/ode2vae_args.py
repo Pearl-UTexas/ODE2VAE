@@ -125,6 +125,15 @@ class ODE2VAE_Args:
             default=None,
             help="Gpu index (default pick lowest memory)",
         )
+        self.parser.add_argument(
+            "--max-horizon", type=int, default=20, help="Maximum trajectory length."
+        )
+        self.parser.add_argument(
+            "--n-trajectories",
+            type=int,
+            default=1000,
+            help="Number of trajectories to use.",
+        )
 
     def parse(self):
         args = self.parser.parse_args()

@@ -43,7 +43,10 @@ def data_map(X, y, W, p=0, dt=0.1):
 def main():
     silence_deprication_warnings()
 
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s:%(filename)s:%(lineno)d:%(levelname)s %(message)s",
+    )
     args = ODE2VAE_Args().parse()
     logging.info(args)
 
@@ -68,7 +71,12 @@ def main():
         )
     )
     dataset, N, T, D = load_data(
-        args.data_root, args.task, subject_id=args.subject_id, plot=True
+        args.data_root,
+        args.task,
+        subject_id=args.subject_id,
+        plot=False,
+        max_n=args.n_trajectories,
+        max_t=args.max_horizon,
     )
 
     # artificial time points
@@ -260,24 +268,24 @@ def main():
             elif args.task == "mocap_many":
                 val_err = np.mean((X - Xrec) ** 2)
             logging.info(
-                "epoch={:>15d}".format(epoch)
-                + "loss={:>15.1f}".format(values[0])
-                + "reconstruction likelihood={:>15.1f}".format(values[1])
-                + "log(p)={:>15.1f}".format(values[2])
-                + "log(q)={:>15.1f}".format(-values[3])
-                + "enc_loss{:>15.1f}".format(values[4])
-                + "likelihood={:>15.1f}".format(val_lhood)
-                + "error={:>15.3f}".format(val_err)
-            )
-        else:
-            logging.info(
-                "epoch={:>15d}".format(epoch)
+                "{:>15d}".format(epoch)
                 + "{:>15.1f}".format(values[0])
                 + "{:>15.1f}".format(values[1])
                 + "{:>15.1f}".format(values[2])
                 + "{:>15.1f}".format(-values[3])
                 + "{:>15.1f}".format(values[4])
-                + "likelihood={:>15.1f}".format(val_lhood)
+                + "{:>15.1f}".format(val_lhood)
+                + "{:>15.3f}".format(val_err)
+            )
+        else:
+            logging.info(
+                "{:>15d}".format(epoch)
+                + "{:>15.1f}".format(values[0])
+                + "{:>15.1f}".format(values[1])
+                + "{:>15.1f}".format(values[2])
+                + "{:>15.1f}".format(-values[3])
+                + "{:>15.1f}".format(values[4])
+                + "{:>15.1f}".format(val_lhood)
             )
 
         if math.isnan(values[0]):

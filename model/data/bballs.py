@@ -19,19 +19,25 @@ def load(dir, file) -> np.ndarray:
     return X
 
 
-def load_bball_data(data_dir, dt=0.1, plot=True):
+def trim(X, max_n: int, max_t: int):
+    N = min(X.shape[0], max_n)
+    T = min(X.shape[1], max_t)
+    return X[:N, :T]
+
+
+def load_bball_data(data_dir, max_n: int, max_t: int, dt=0.1, plot=True):
     data_dir = Path(data_dir)
 
-    Xtr = load(data_dir, "training")
+    Xtr = trim(load(data_dir, "training"), max_n, max_t)
 
     Ytr = dt * np.arange(0, Xtr.shape[1], dtype=np.float32)
     Ytr = np.tile(Ytr, [Xtr.shape[0], 1])
 
-    Xval = load(data_dir, "val")
+    Xval = trim(load(data_dir, "val"), max_n, max_t)
     Yval = dt * np.arange(0, Xval.shape[1], dtype=np.float32)
     Yval = np.tile(Yval, [Xval.shape[0], 1])
 
-    Xtest = load(data_dir, "test")
+    Xtest = trim(load(data_dir, "test"), max_n, max_t)
     Ytest = dt * np.arange(0, Xtest.shape[1], dtype=np.float32)
     Ytest = np.tile(Ytest, [Xtest.shape[0], 1])
 

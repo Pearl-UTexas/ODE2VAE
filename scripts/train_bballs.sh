@@ -1,7 +1,7 @@
 #!/bin/bash
 python train.py \
   --task bballs \
-  --data_root data \
+  --data_root "data/bouncing_balls_data/noise_0.1" \
   --q 25 \
   --Hf 100 \
   --amort_len 3 \

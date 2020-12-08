@@ -80,5 +80,24 @@ def setup_gpu():
 
 
 def silence_deprication_warnings():
-    warnings.filterwarnings(action="ignore", message=".*deprecated")
-    warnings.filterwarnings(action="ignore", category=FutureWarning)
+    try:
+        import tensorflow.python.util.deprecation as deprecation
+
+        deprecation._PRINT_DEPRECATION_WARNINGS = False
+    except:
+        pass
+    try:
+        from tensorflow.python.util import deprecation
+
+        deprecation._PRINT_DEPRECATION_WARNINGS = False
+    except:
+        pass
+    try:
+        from tensorflow.python.util import module_wrapper as deprecation
+    except ImportError:
+        from tensorflow.python.util import deprecation_wrapper as deprecation
+    deprecation._PER_MODULE_WARNING_LIMIT = 0
+    warnings.filterwarnings("ignore", message=" The name tf")
+    warnings.filterwarnings("ignore", category=FutureWarning)
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    warnings.filterwarnings("ignore", message="\nThe TensorFlow contrib")
