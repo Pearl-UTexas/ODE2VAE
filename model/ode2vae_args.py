@@ -119,20 +119,25 @@ class ODE2VAE_Args:
             default=0,
             help="subject ID in mocap_single experiments",
         )
+        self.parser.add_argument(
+            "--gpu",
+            type=str,
+            default=None,
+            help="Gpu index (default pick lowest memory)",
+        )
 
     def parse(self):
-        opt = self.parser.parse_args()
-        opt = vars(opt)
-        if opt["activation_fn"] == "relu":
-            opt["activation_fn"] = tf.nn.relu
-        elif opt["activation_fn"] == "tanh":
-            opt["activation_fn"] = tf.nn.tanh
-        elif opt["activation_fn"] == "identity":
-            opt["activation_fn"] = tf.identity
+        args = self.parser.parse_args()
+        if args.activation_fn == "relu":
+            args.activation_fn = tf.nn.relu
+        elif args.activation_fn == "tanh":
+            args.activation_fn = tf.nn.tanh
+        elif args.activation_fn == "identity":
+            args.activation_fn = tf.identity
         else:
             raise ValueError(
                 'activation_fn must be either of "relu","tanh","identity": {:s}'.format(
-                    opt["activation_fn"]
+                    args.activation_fn
                 )
             )
-        return opt
+        return args

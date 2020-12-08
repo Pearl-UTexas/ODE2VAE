@@ -1,6 +1,5 @@
 import logging
 import math
-import os
 import time
 from functools import partial
 from pathlib import Path
@@ -11,12 +10,13 @@ import tensorflow as tf  # type: ignore
 from model.data.utils import plot_latent
 from model.data.wrappers import *
 from model.ode2vae_args import ODE2VAE_Args
+from model.tf_utils import set_gpu, setup_gpu, silence_deprication_warnings
 
 
 def make_dirs(paths: Sequence[Path]):
     for path in paths:
         if not path.exists():
-            path.mkdir()
+            path.mkdir(parents=True)
 
 
 def make_ext(args) -> str:
@@ -41,16 +41,32 @@ def data_map(X, y, W, p=0, dt=0.1):
 
 
 def main():
-    sess = tf.InteractiveSession()
+    silence_deprication_warnings()
 
-    ########### setup params, data, etc ###########
-    # read params
+    logging.basicConfig(level=logging.INFO)
     args = ODE2VAE_Args().parse()
     logging.info(args)
 
     make_dirs([Path(args.ckpt_dir) / args.task, Path("plots") / args.task])
 
-    # dataset
+    ext = make_ext(args)
+
+    ########### training related stuff ###########
+    xval_batch_size = int(args.batch_size / 2)
+    min_val_lhood = -1e15
+
+    if args.gpu is not None:
+        set_gpu(args.gpu)
+    else:
+        setup_gpu()
+
+    sess = tf.InteractiveSession(
+        config=tf.ConfigProto(
+            allow_soft_placement=True,
+            log_device_placement=False,
+            gpu_options={"allow_growth": True},
+        )
+    )
     dataset, N, T, D = load_data(
         args.data_root, args.task, subject_id=args.subject_id, plot=True
     )
@@ -58,12 +74,6 @@ def main():
     # artificial time points
     dt = 0.1
     t = dt * np.arange(0, T, dtype=np.float32)
-
-    ext = make_ext(args)
-
-    ########### training related stuff ###########
-    xval_batch_size = int(args.batch_size / 2)
-    min_val_lhood = -1e15
 
     xbspl = tf.placeholder(tf.int64, name="tr_batch_size")
     xfpl = tf.placeholder(tf.float32, [None, None, D], name="tr_features")
@@ -74,13 +84,13 @@ def main():
     xtr_dataset = (
         tf.data.Dataset.from_tensor_slices((xfpl, xtpl))
         .batch(xbspl)
-        .map(data_map, 8)
+        .map(partial_map, 8)
         .prefetch(2)
     )
     xval_dataset = (
         tf.data.Dataset.from_tensor_slices((xfpl, xtpl))
         .batch(xbspl)
-        .map(data_map, 8)
+        .map(partial_map, 8)
         .repeat()
     )
 
@@ -94,11 +104,11 @@ def main():
     xtr_init_op = xiter_.make_initializer(xtr_dataset)
     xval_init_op = xiter_.make_initializer(xval_dataset)
 
-    ########### model ###########
     if "nonuniform" not in args.task:
         from model.ode2vae import ODE2VAE
     else:
         from model.ode2vae_nonuniform import ODE2VAE
+
     vae = ODE2VAE(
         sess,
         args.f_opt,
@@ -128,7 +138,7 @@ def main():
     ########### training loop ###########
     t0 = time.time()
 
-    print(
+    logging.info(
         "{:>15s}".format("epoch")
         + "{:>15s}".format("total_cost")
         + "{:>15s}".format("E[p(x|z)]")
@@ -138,7 +148,7 @@ def main():
         + "{:>15s}".format("valid_cost")
         + "{:>15s}".format("valid_error")
     )
-    print(
+    logging.info(
         "{:>15s}".format("should")
         + "{:>15s}".format("decrease")
         + "{:>15s}".format("increase")
@@ -162,8 +172,8 @@ def main():
         )
         while True:
             try:
-                if np.mod(num_iter, 20) == 0:
-                    print(num_iter)
+                # if np.mod(num_iter, 20) == 0:
+                #     logging.info(f"Training iter{num_iter}")
                 ops_ = [
                     vae.vae_optimizer,
                     vae.vae_loss,
@@ -192,7 +202,8 @@ def main():
         for _ in range(num_val_iter):
             try:
                 val_lhood += sess.run(
-                    vae.mean_reconstr_lhood, feed_dict={vae.train: False, vae.Tss: Tss}
+                    vae.mean_reconstr_lhood,
+                    feed_dict={vae.train: False, vae.Tss: Tss},
                 )
             except tf.errors.OutOfRangeError:
                 break
@@ -248,33 +259,33 @@ def main():
                 val_err = np.mean(diff)
             elif args.task == "mocap_many":
                 val_err = np.mean((X - Xrec) ** 2)
-            print(
-                "{:>15d}".format(epoch)
-                + "{:>15.1f}".format(values[0])
-                + "{:>15.1f}".format(values[1])
-                + "{:>15.1f}".format(values[2])
-                + "{:>15.1f}".format(-values[3])
-                + "{:>15.1f}".format(values[4])
-                + "{:>15.1f}".format(val_lhood)
-                + "{:>15.3f}".format(val_err)
+            logging.info(
+                "epoch={:>15d}".format(epoch)
+                + "loss={:>15.1f}".format(values[0])
+                + "reconstruction likelihood={:>15.1f}".format(values[1])
+                + "log(p)={:>15.1f}".format(values[2])
+                + "log(q)={:>15.1f}".format(-values[3])
+                + "enc_loss{:>15.1f}".format(values[4])
+                + "likelihood={:>15.1f}".format(val_lhood)
+                + "error={:>15.3f}".format(val_err)
             )
         else:
-            print(
-                "{:>15d}".format(epoch)
+            logging.info(
+                "epoch={:>15d}".format(epoch)
                 + "{:>15.1f}".format(values[0])
                 + "{:>15.1f}".format(values[1])
                 + "{:>15.1f}".format(values[2])
                 + "{:>15.1f}".format(-values[3])
                 + "{:>15.1f}".format(values[4])
-                + "{:>15.1f}".format(val_lhood)
+                + "likelihood={:>15.1f}".format(val_lhood)
             )
 
         if math.isnan(values[0]):
-            print("*** average cost is nan. terminating...")
+            logging.error("*** average cost is nan. terminating...")
             break
 
     t1 = time.time()
-    print("elapsed time: {:.2f}".format(t1 - t0))
+    logging.info("elapsed time: {:.2f}".format(t1 - t0))
 
 
 if __name__ == "__main__":

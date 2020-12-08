@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import hickle as hkl
 import matplotlib.pyplot as plt
@@ -8,17 +9,29 @@ plt.switch_backend("agg")
 from .utils import MyDataset
 
 
+def load(dir, file) -> np.ndarray:
+    if (dir / (file + ".hkl")).exists():
+        X = hkl.load(os.path.join(dir, file + ".hkl"))
+    elif (dir / (file + ".npz")).exists():
+        X = np.load(dir / (file + ".npz"))["arr_0"]
+    else:
+        raise ValueError(f"No hkl or npz file={dir / file}")
+    return X
+
+
 def load_bball_data(data_dir, dt=0.1, plot=True):
-    Xtr = hkl.load(os.path.join(data_dir, "training.hkl"))
-    # Xtr = Xtr[0:500,:,:]
+    data_dir = Path(data_dir)
+
+    Xtr = load(data_dir, "training")
+
     Ytr = dt * np.arange(0, Xtr.shape[1], dtype=np.float32)
     Ytr = np.tile(Ytr, [Xtr.shape[0], 1])
 
-    Xval = hkl.load(os.path.join(data_dir, "val.hkl"))
+    Xval = load(data_dir, "val")
     Yval = dt * np.arange(0, Xval.shape[1], dtype=np.float32)
     Yval = np.tile(Yval, [Xval.shape[0], 1])
 
-    Xtest = hkl.load(os.path.join(data_dir, "test.hkl"))
+    Xtest = load(data_dir, "test")
     Ytest = dt * np.arange(0, Xtest.shape[1], dtype=np.float32)
     Ytest = np.tile(Ytest, [Xtest.shape[0], 1])
 
