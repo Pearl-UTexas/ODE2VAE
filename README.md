@@ -1,3 +1,32 @@
+This is a fork of https://github.com/cagatayyildiz/ODE2VAE with the intent of investigating if ODE2VAE can handle stochastic dynamics.
+
+To install:
+```
+conda env create -f environment.yml
+conda activate ode2vae
+python -m pip install -r requirements.txt
+```
+
+to train
+```
+parallel "python train.py --task bballs --data_root data/bouncing_ball_data/noise_{}/ --q 25 --Hf 100 --amort_len 3 --batch_size 60 --activation_fn relu --eta 0.0008 --max-horizon 20 --n-trajectories 1000 &> logs/noise_{}.log" ::: 0.1 0.2 0.3 0.4
+parallel "python train.py --task bballs --data_root data/bouncing_ball_data/pegged_noise_{}/ --q 25 --Hf 100 --amort_len 3 --batch_size 60 --activation_fn relu --eta 0.0008 --max-horizon 20 --n-trajectories 1000 &> logs/pegged_noise_{}.log" ::: 0.1 0.2 0.3 0.4
+```
+
+to get training curves
+```
+parallel python scrape_log.py --log logs/noise_{}.log --out logs/noise_{}.pkl ::: 0.1 0.2 0.3 0.4
+parallel python scrape_log.py --log logs/pegged_noise_{}.log --out logs/pegged_noise_{}.pkl ::: 0.1 0.2 0.3 0.4
+python plot_log.py --datadir logs --names "noise_0.1.pkl noise_0.2.pkl noise_0.3.pkl noise_0.4.pkl pegged_noise_0.1.pkl pegged_noise_0.2.pkl pegged_noise_0.3.pkl pegged_noise_0.4.pkl" --outdir plots/
+```
+
+to get reconstructions
+
+```
+parallel python test.py --data_root data/bouncing_ball_data/pegged_noise_{} --task bballs --ckpt checkpoints/pegged_noise_{}/bballs/bballs_q25_inst1_fopt2_enc16_dec32 --plot-dir plots/pegged_noise_{} ::: 0.1 0.2 0.3 0.4
+parallel python test.py --data_root data/bouncing_ball_data/noise_{} --task bballs --ckpt checkpoints/noise_{}/bballs/bballs_q25_inst1_fopt2_enc16_dec32 --plot-dir plots/noise_{} ::: 0.1 0.2 0.3 0.4
+```
+---
 # <img src="https://latex.codecogs.com/gif.latex?\Huge{\textbf{ODE}\mbox{\Huge$^2$}\textbf{VAE}}" />
 
 TensorFlow and PyTorch implementation of [Deep generative second order ODEs with Bayesian neural networks](https://arxiv.org/pdf/1905.10994.pdf) by <br/> [Çağatay Yıldız](http://cagatayyildiz.github.io), [Markus Heinonen](https://users.aalto.fi/~heinom10/) and [Harri Lahdesmäki](https://users.ics.aalto.fi/harrila/).
