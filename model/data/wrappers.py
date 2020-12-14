@@ -8,8 +8,8 @@ from .mocap_single import *
 def load_data(
     data_dir,
     task: str,
-    max_n: int,
-    max_t: int,
+    max_n: int = -1,
+    max_t: int = -1,
     dt: float = 0.1,
     subject_id: int = 0,
     plot: bool = False,

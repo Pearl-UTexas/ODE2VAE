@@ -19,24 +19,36 @@ def load(dir, file) -> np.ndarray:
     return X
 
 
+def reshape(X):
+    if len(X.shape) > 3:
+        return X.reshape((-1, 20, 1024))
+    return X
+
+
 def trim(X, max_n: int, max_t: int):
-    N = min(X.shape[0], max_n)
-    T = min(X.shape[1], max_t)
+    if max_n > 0:
+        N = min(X.shape[0], max_n)
+    else:
+        N = X.shape[0]
+    if max_t > 0:
+        T = min(X.shape[1], max_t)
+    else:
+        T = X.shape[1]
     return X[:N, :T]
 
 
 def load_bball_data(data_dir, max_n: int, max_t: int, dt=0.1, plot=True):
     data_dir = Path(data_dir)
 
-    Xtr = trim(load(data_dir, "training"), max_n, max_t)
+    Xtr = trim(reshape(load(data_dir, "training")), max_n, max_t)
     Ytr = dt * np.arange(0, Xtr.shape[1], dtype=np.float32)
     Ytr = np.tile(Ytr, [Xtr.shape[0], 1])
 
-    Xval = trim(load(data_dir, "val"), max_n, max_t)
+    Xval = trim(reshape(load(data_dir, "val")), max_n, max_t)
     Yval = dt * np.arange(0, Xval.shape[1], dtype=np.float32)
     Yval = np.tile(Yval, [Xval.shape[0], 1])
 
-    Xtest = trim(load(data_dir, "test"), max_n, max_t)
+    Xtest = trim(reshape(load(data_dir, "test")), max_n, max_t)
     Ytest = dt * np.arange(0, Xtest.shape[1], dtype=np.float32)
     Ytest = np.tile(Ytest, [Xtest.shape[0], 1])
 

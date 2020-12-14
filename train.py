@@ -186,12 +186,14 @@ def main():
                 #     logging.info(f"Training iter{num_iter}")
                 ops_ = [
                     vae.vae_optimizer,
-                    vae.vae_loss,
-                    vae.reconstr_lhood,
-                    vae.log_p,
-                    vae.log_q,
-                    vae.inst_enc_loss,
+                    vae.vae_loss.op,
+                    vae.reconstr_lhood.op,
+                    vae.log_p.op,
+                    vae.log_q.op,
+                    vae.inst_enc_loss.op,
                 ]
+                print(ops_)
+                exit()
                 values_batch = sess.run(ops_, feed_dict={vae.train: True, vae.Tss: Tss})
                 values = [values[i] + values_batch[i + 1] for i in range(5)]
                 if any([math.isnan(value) for value in values]):

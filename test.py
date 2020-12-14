@@ -23,11 +23,15 @@ parser.add_argument("--ckpt", type=str, default="checkpoints", help="checkpoints
 parser.add_argument(
     "--subject_id", type=int, default=0, help="subject ID in mocap_single experiments"
 )
+parser.add_argument("--plot-dir", type=str)
 opt = parser.parse_args()
 opt = vars(opt)
 for key in opt.keys():
     print("{:s}: {:s}".format(key, str(opt[key])))
 locals().update(opt)
+
+plot_dir = Path(plot_dir)
+(plot_dir / "bballs").mkdir(parents=True, exist_ok=True)
 
 if not os.path.exists(os.path.join("plots", task)):
     os.makedirs(os.path.join("plots", task))
@@ -118,7 +122,7 @@ if "nonuniform" in task:
     ts = np.tile(ts, [X.shape[0], 1])
 zt = integrate(X, L=L, ts=ts)  # sampled latent trajectories
 if q == 2 or q == 3:
-    fname = "plots/{:s}/latent_{:s}.png".format(task, ext)
+    fname = plot_dir / "{:s}/latent_{:s}.png".format(task, ext)
     cols = ["b", "r", "g", "m", "c", "k", "y"]
     [T, N, L, q] = zt.shape
     zt = np.transpose(zt, [1, 2, 3, 0])  # N,L,q,T
@@ -154,7 +158,12 @@ if "nonuniform" not in task:
 Xrec = reconstruct(X, L=1, ts=ts)  # samples from the decoder
 Xrec = np.squeeze(Xrec, 1)  # N,T,D
 plot_reconstructions(
-    task, X, Xrec, ts, show=False, fname="plots/{:s}/rec_{:s}.png".format(task, "train")
+    task,
+    X,
+    Xrec,
+    ts,
+    show=False,
+    fname=plot_dir / "{:s}/rec_{:s}.png".format(task, "train"),
 )
 
 X = dataset.test.next_batch(5)[0]
@@ -164,5 +173,10 @@ if "nonuniform" in task:
 Xrec = reconstruct(X, L=1, ts=ts)  # samples from the decoder
 Xrec = np.squeeze(Xrec, 1)  # N,T,D
 plot_reconstructions(
-    task, X, Xrec, ts, show=False, fname="plots/{:s}/rec_{:s}.png".format(task, ext)
+    task,
+    X,
+    Xrec,
+    ts,
+    show=False,
+    fname=plot_dir / "{:s}/rec_{:s}.png".format(task, ext),
 )
